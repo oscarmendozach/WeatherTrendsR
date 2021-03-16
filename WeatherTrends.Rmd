@@ -1,0 +1,241 @@
+---
+title: "Exploring Weather Trends"
+author: "Oscar Mendoza"
+date: "9/3/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+
+In this Project, you will analyze local and global temperature data and compare the temperature trends where you live to overall global temperature trends.
+
+## Instructions
+
+Your goal will be to create a visualization and prepare a write up describing the similarities and differences between global temperature trends and temperature trend in the closest big city to where you live. To do this, you'll follow the steps belows:
+
+* **Extract the data** from the database.
+  * Write a SQL query to extract the city level data.
+  * Write a SQL query to extract the global data.
+* **Open up the CSV** 
+* **Create a line chart**
+* **Make observations**
+  * Is your city hotter or cooler on average compared to the global average? Has the difference been consistent over time?
+  * "How do the changes in your city's temperature over time compare to the changes in the global average?"
+  * What does the  overall trend look like? Is the world getting hotter or cooler? Has the trend been consistent over the last few hundred year?
+
+## Introduction
+
+The present report was made using R and Rmarkdown, printed in a PDF File.
+
+This report will have the following sections:
+
+1. Data Acquisition and Processing
+2. Data Visualization
+3. Observations and Conclusions
+
+## 1. Data Acquisition and Processing
+
+The data is available in a Database Schema in Udacity's Project.
+There are 3 tables:
+
+1. city_data
+  * year
+  * city
+  * country
+  * avg_temp
+
+2. city_list
+  * city
+  * country
+
+3. global_data
+  * year
+  * avg_temp
+
+### City Selection
+
+The city where I live is Santa Cruz de la Sierra, located in eastern Bolivia. Although there is some data regarding La Paz, which is the capital of Bolivia, this city is located in the Andes Plateau, with a climate different from the one of Santa Cruz. The grasslands are hotter and have an overall different behavior.
+
+However, all the Brazilian cities that are in the database are in or nearby the coastline. No cities from Paraguay or were included, so due to proximity, La Paz will be analyzed.
+
+
+```{ }
+SELECT *
+FROM city_data
+WHERE city = 'La Paz' AND country = 'Bolivia';
+```
+
+The earliest year when data was taken is 1855.
+By looking at the global_data table, 
+
+```{  }
+SELECT *
+FROM global_data
+ORDER BY year;
+```
+
+The earliest year is 1750.
+So in order to have the same time range, the years later than 1855 will be selected to 2013:
+
+```{ }
+SELECT *
+FROM global_data
+WHERE global_data.year >= 1855 AND global_data.year <= 2013
+ORDER BY year;
+```
+
+And the results will be saved into two different csv files:
+
+- 'LaPaz_Weather.csv'
+- 'Global_Weather.csv'
+
+### Data Loading
+
+The data will be loading into the following variables
+
+```{r echo=TRUE}
+global_data <- read.csv(file = "Global_Weather.csv", header = TRUE, sep = ",")
+
+lapaz_data <- read.csv(file = "LaPaz_Weather.csv", header = TRUE, sep = ",")
+```
+
+The dimensions and structure of each table is:
+
+```{r echo = TRUE}
+#table sizes
+
+dim(global_data)
+
+dim(lapaz_data)
+
+#table details
+
+str(global_data)
+
+str(lapaz_data)
+```
+
+### Data Processing
+
+Once the content of the tables have been described, a new column is added: mavg, moving average.
+In this case, we will use a n=5, which means that the moving average will be computed in the range of 5 years.
+
+```{r echo = TRUE}
+#create the moving average column and fill it with 0's
+
+lapaz_data$mavg <- 0
+global_data$mavg <-0
+
+#compute the moving average for a time range of 5 years
+
+n <- 5
+
+#moving average for La Paz city
+
+for (i in 1:(nrow(lapaz_data)-n+1)){
+  lapaz_data$mavg[i+n-1] <- sum(lapaz_data$avg_temp[i:(i+n-1)])/n
+}
+
+#moving average for global data
+
+for (i in 1:(nrow(global_data)-n+1)){
+  global_data$mavg[i+n-1] <- sum(global_data$avg_temp[i:(i+n-1)])/n
+}
+
+```
+
+And then we check the consistency of the computation
+
+```{r echo = TRUE}
+head(lapaz_data)
+
+head(global_data)
+```
+
+A third dataframe is built with all the measurements in order to create a plot to compare them
+
+```{r echo = TRUE}
+alldata1 <- data.frame(year = lapaz_data$year, source = "La Paz", mavg = lapaz_data$mavg)
+alldata2 <- data.frame(year = global_data$year, source = "Global", mavg = global_data$mavg)
+
+alldata <- rbind(alldata1, alldata2)
+```
+
+## 2. Data Visualization
+
+The ggplot2 package will be used for this visualization
+
+```{r echo = TRUE}
+library(ggplot2)
+```
+
+So the data in La Paz will be reviewed first 
+
+```{r echo = TRUE}
+lapaz_plot <- ggplot(data = lapaz_data, aes(x = year, y = avg_temp)) +
+  geom_point(color = "navy") + geom_line(aes(x = year, y = mavg), color = "orange") +
+  ggtitle("Average Measured temperatures in La Paz, Bolivia") +
+  xlab("Years") + 
+  ylab("Temperature")
+
+print(lapaz_plot)
+```
+
+And then the Global data
+
+```{r echo = TRUE}
+global_plot <- ggplot(data = global_data, aes(x = year, y = avg_temp)) + 
+  geom_point(color = "navy") + geom_line(aes(x = year, y = mavg), color = "orange") +
+  ggtitle("Average Measured Global Temperatures") +
+  xlab("Years") + 
+  ylab("Temperature")
+
+print(global_plot)
+```
+
+## 3. Observations and Conclusions
+
+It is clear that the general trend shows an increment in the temperatures, both in the measured ones (avg_temp) and the computed moving averages.
+
+By plotting the moving averages and a linear model regression to the plot, both as facets, we can see that, overall, the average temperatures have been increasing.
+
+```{r echo = TRUE}
+combined_plot <- ggplot(data = alldata, aes(x = year, y =mavg)) +
+  geom_point(color = "navy") + geom_smooth(method = "lm", se = TRUE) + facet_grid(source~., scales = "free") +
+  ggtitle("Moving Average Temperatures") +
+  xlab("Years") + 
+  ylab("Temperature")
+
+print(combined_plot)
+```
+
+Answering the former questions:
+
+* Is your city hotter or cooler on average compared to the global average? Has the difference been consistent over time?
+
+```{r echo =TRUE}
+plot1 <- ggplot(data = alldata, aes(x = year, y = mavg, col  = source))+ 
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Average Temperatures Moving Averages") +
+  xlab("Years") +
+  ylab("Temperature")
+
+print(plot1)
+```
+
+*Answer*: The city has been hotter than the global average, although the trend has been changing lately.
+
+* "How do the changes in your city's temperature over time compare to the changes in the global average?"
+
+*Answer*: The follow the same trend, an increment in the average temperature have been observed.
+
+* What does the  overall trend look like? Is the world getting hotter or cooler? Has the trend been consistent over the last few hundred year?
+
+*Answer*: The world has been getting hotter, and this trend it's been constant for the last few hundred years.
