@@ -87,7 +87,7 @@ library(ggplot2)
 
 lapaz_avg_temp <- lapaz_computeddata %>% filter(variable == "avg_temp")
 
-lapaz_computeddata %>% filter(variable != "avg_temp") %>% 
+lapaz_computeddata %>% filter(variable != "avg_temp", value > 0) %>% 
   ggplot (aes(x = year, y = value, color = variable)) + 
   geom_line() +
   geom_point(data = lapaz_avg_temp, aes(x = year, y = value)) +
@@ -99,7 +99,7 @@ lapaz_computeddata %>% filter(variable != "avg_temp") %>%
 
 global_avg_temp <- global_computeddata %>% filter(variable == "avg_temp")
 
-global_computeddata %>% filter(variable != "avg_temp") %>%
+global_computeddata %>% filter(variable != "avg_temp", value > 0) %>%
   ggplot(aes(x = year, y = value, color = variable)) +
   geom_line() +
   geom_point(data = global_avg_temp, aes(x = year, y = value)) +
@@ -110,10 +110,14 @@ global_computeddata %>% filter(variable != "avg_temp") %>%
 
 #Combined plot
 
-alldata %>% ggplot( aes(x = year, y =value, color = source)) +
+alldata %>% filter(value > 0) %>%
+  ggplot( aes(x = year, y =value, color = source)) +
   geom_point() + 
   facet_grid(~variable, scales = "free") +
   ggtitle("Temperature Comparisson between Global average temperatures and La Paz", subtitle = "Measured Temperatures and Computed Moving Averages") +
   xlab("Time [years]") + 
   ylab("Temperature [Degrees Celsius]")
 
+#mavg25 dataframe
+mavg25 <- data.frame(year = lapaz_data$year, lapaz_mavg25 = lapaz_data$mavg25, global_mavg25 = global_data$mavg25)
+mavg25$difference <- mavg25$lapaz_mavg25 - mavg25$global_mavg25

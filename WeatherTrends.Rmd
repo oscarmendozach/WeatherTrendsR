@@ -3,8 +3,8 @@ title: "Exploring Weather Trends"
 author: "Oscar Mendoza"
 date: "9/3/2021"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -168,18 +168,28 @@ head(global_data)
 A third dataframe is built with all the measurements in order to create a plot to compare them
 
 ```{r echo = TRUE}
-#a new dataframe is created, with the following  columns: year, source, variable, value
+#a new dataframe is created, with the following  columns: year, source, 
+#variable, value
 
 library(reshape2)
 
-lapaz_computeddata <- melt(lapaz_data, id = c("year", "city", "country"))
+lapaz_computeddata <- melt(lapaz_data, id = c("year", 
+                                              "city", 
+                                              "country"))
 
 #rename the column names
-names(lapaz_computeddata) <- c("year", "source", "country", "variable", "value")
+names(lapaz_computeddata) <- c("year", 
+                               "source", 
+                               "country", 
+                               "variable", 
+                               "value")
 
 #drop the column "country" because is no longer necessary
 
-lapaz_computeddata <- subset(lapaz_computeddata, select = c("year", "source", "variable", "value"))
+lapaz_computeddata <- subset(lapaz_computeddata, select = c("year", 
+                                                            "source",
+                                                            "variable", 
+                                                            "value"))
 
 #we do the same for the global dataframe
 
@@ -210,13 +220,15 @@ library(dplyr)
 So the data in La Paz will be reviewed first 
 
 ```{r echo = TRUE}
-lapaz_avg_temp <- lapaz_computeddata %>% filter(variable == "avg_temp")
+lapaz_avg_temp <- lapaz_computeddata %>% 
+  filter(variable == "avg_temp", value > 0)
 
-lapaz_computeddata %>% filter(variable != "avg_temp") %>% 
+lapaz_computeddata %>% 
+  filter(variable != "avg_temp", value > 0) %>% 
   ggplot (aes(x = year, y = value, color = variable)) + 
   geom_line() +
   geom_point(data = lapaz_avg_temp, aes(x = year, y = value)) +
-  ggtitle("Averaged measured temperatures in La Paz, Bolivia and Computed Moving Averages") +
+  ggtitle("Averaged measured temperatures in La Paz and Computed Moving Averages") +
   xlab("Time [years]") +
   ylab("Temperature [degrees Celsius]")
 ```
@@ -224,9 +236,10 @@ lapaz_computeddata %>% filter(variable != "avg_temp") %>%
 And then the Global data
 
 ```{r echo = TRUE}
-global_avg_temp <- global_computeddata %>% filter(variable == "avg_temp")
+global_avg_temp <- global_computeddata %>% 
+  filter(variable == "avg_temp", value > 0)
 
-global_computeddata %>% filter(variable != "avg_temp") %>%
+global_computeddata %>% filter(variable != "avg_temp", value > 0) %>%
   ggplot(aes(x = year, y = value, color = variable)) +
   geom_line() +
   geom_point(data = global_avg_temp, aes(x = year, y = value)) +
@@ -237,33 +250,70 @@ global_computeddata %>% filter(variable != "avg_temp") %>%
 
 ## 3. Observations and Conclusions
 
-It is clear that the general trend shows an increment in the temperatures, both in the measured ones (avg_temp) and the computed moving averages.
+* **Observation 1**
 
-By plotting the moving averages and a linear model regression to the plot, both as facets, we can see that, overall, the average temperatures have been increasing.
-
+  By looking at the previous plots it is clear that both plots, La Paz and Global, show an increasing trend.
+Of all the moving averages computed, the one that showed the most improved trend visualization is the moving average with a time range of 25 years.
+  On the other hand, by looking at the moving average with a time range of 50 years, the trend is oversmoothed.
+  
 ```{r echo = TRUE}
-alldata %>% ggplot( aes(x = year, y =value, color = source)) +
+alldata %>% 
+  filter(value > 0) %>%
+  ggplot( aes(x = year, y =value, color = source)) +
   geom_line() + 
   facet_grid(variable~., scales = "free") +
-  ggtitle("Temperature Comparisson between Global average temperatures and La Paz", subtitle = "Measured Temperatures and Computed Moving Averages") +
+  ggtitle("Temperature Comparisson between Global average temperatures and La Paz", 
+          subtitle = "Measured Temperatures and Computed Moving Averages") +
   xlab("Time [years]") + 
   ylab("Temperature [Degrees Celsius]")
 ```
 
-Answering the former questions:
+* **Observation 2**
+
+  It is clear that, in all cases, the general trend shows an increment in the average temperature over the years, in both the Global temperatures and in La Paz.
+
+  
+**Questions**
+
+So for answering the following questions, the computed moving average of 25 years will be used.
 
 * Is your city hotter or cooler on average compared to the global average? Has the difference been consistent over time?
 
 ```{r echo =TRUE}
+#a new dataframe is built
+mavg25 <- data.frame(year = lapaz_data$year, lapaz_mavg25 = lapaz_data$mavg25, 
+                     global_mavg25 = global_data$mavg25)
 
+#the difference is defined as La Paz - Global mvag25 temperatures
+mavg25$difference <- mavg25$lapaz_mavg25 - mavg25$global_mavg25
+
+mavg25 %>% 
+  filter(lapaz_mavg25 > 0, global_mavg25 > 0) %>%
+  ggplot(aes(x = year, y = difference)) +
+  geom_col() +
+  ggtitle("La Paz and Global temperatures differences over the years") +
+  xlab("Time [years]") +
+  ylab("Temperature Difference [degrees Celsius]")
 ```
 
-*Answer*: The city has been hotter than the global average, although the trend has been changing lately.
+  *Answer*: The column plot show the difference between La Paz's average temperature from the computed mavg25. Although the weather in La Paz has been consistenly hotter than the global average, the trend has changed over the last few years.
 
 * "How do the changes in your city's temperature over time compare to the changes in the global average?"
 
-*Answer*: The follow the same trend, an increment in the average temperature have been observed.
+  *Answer*: The follow the same trend, an increment in the average temperature have been observed.
 
 * What does the  overall trend look like? Is the world getting hotter or cooler? Has the trend been consistent over the last few hundred year?
 
-*Answer*: The world has been getting hotter, and this trend it's been constant for the last few hundred years.
+  *Answer*: The world has been getting hotter, and this trend it's been constant for the last few hundred years.
+
+```{r echo = TRUE}
+alldata %>% filter(value > 0, variable == "mavg25", source == "Global") %>%
+  ggplot( aes(x = year, y =value)) +
+  geom_line() + 
+  ggtitle("Average Global Temperature", 
+          subtitle = "Computed Moving Averages using n = 25 years") +
+  xlab("Time [years]") + 
+  ylab("Temperature [Degrees Celsius]")
+```
+
+  Although, if we check the temperature after 1980, we can see that the average temperature is increasing faster than in previous years.
